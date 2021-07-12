@@ -19,6 +19,7 @@ export default class PlaylistLabelRenderer {
       isAnimatingCollect: false,
       playbackPosition: 0,
       collectClassname: null,
+      errorDialogueCloseTimeout: null,
     };
   }
 
@@ -312,32 +313,63 @@ export default class PlaylistLabelRenderer {
     return str.length > max ? `${str.substr(0, max - 3)}...` : str;
   }
 
-  handleTapMessage() {
-    // UPDATE 'COLLECTED' UI
-    if (!this.state.isAnimatingCollect) {
-      // Debounced with isAnimatingCollect
-      this.state.isAnimatingCollect = true;
+  openErrorDialogue(errorText) {
+    const errorDialogueElement = document.getElementById("error-dialogue");
+    errorDialogueElement.style.opacity = 1;
+    const errorDialogueTextElement = document.getElementById(
+      "error-dialogue-text"
+    );
+    errorDialogueTextElement.innerHTML = errorText;
+    window.clearTimeout(this.state.errorDialogueCloseTimeout);
+    this.state.errorDialogueCloseTimeout = window.setTimeout(
+      this.closeErrorDialogue.bind(this),
+      3000
+    );
+  }
 
-      // Animation plays: collect -> hidden -> collected -> hidden -> collect
-      const collectElement = document.getElementById("collect");
-      const { collectClassname } = this.state;
-      collectElement.className = `${collectClassname} hidden`;
-      window.setTimeout(function timeout1() {
-        collectElement.innerHTML = "COLLECTED";
-        collectElement.className = `${collectClassname} active`;
-      }, 500);
-      window.setTimeout(function timeout2() {
-        collectElement.className = `${collectClassname} active hidden`;
-      }, 3000);
-      window.setTimeout(
-        function timeout3() {
-          collectElement.className = collectClassname;
-          collectElement.innerHTML = "COLLECT";
-          this.state.isAnimatingCollect = false;
-        }.bind(this),
-        3500
+  closeErrorDialogue() {
+    const errorDialogueElement = document.getElementById("error-dialogue");
+    window.clearTimeout(this.state.errorDialogueCloseTimeout);
+    errorDialogueElement.style.opacity = 0;
+  }
+
+  handleTapMessage(event) {
+    const eventData = JSON.parse(event.data);
+    const tapSuccessful =
+      eventData.tap_successful && eventData.tap_successful === 1;
+
+    if (!tapSuccessful) {
+      this.openErrorDialogue(
+        "Work not collected <br><br> See a Visitor Experience staff member"
       );
+      return;
     }
+
+    if (this.state.isAnimatingCollect) return;
+
+    // UPDATE 'COLLECTED' UI
+    // Debounced with isAnimatingCollect
+    this.state.isAnimatingCollect = true;
+
+    // Animation plays: collect -> hidden -> collected -> hidden -> collect
+    const collectElement = document.getElementById("collect");
+    const { collectClassname } = this.state;
+    collectElement.className = `${collectClassname} hidden`;
+    window.setTimeout(function timeout1() {
+      collectElement.innerHTML = "COLLECTED";
+      collectElement.className = `${collectClassname} active`;
+    }, 500);
+    window.setTimeout(function timeout2() {
+      collectElement.className = `${collectClassname} active hidden`;
+    }, 3000);
+    window.setTimeout(
+      function timeout3() {
+        collectElement.className = collectClassname;
+        collectElement.innerHTML = "COLLECT";
+        this.state.isAnimatingCollect = false;
+      }.bind(this),
+      3500
+    );
   }
 
   addTitleAnnotation(work) {
